@@ -2,9 +2,10 @@ type Props = {
   score: number
   onPlayAgain: () => void
   onChangeSettings: () => void
+  onOpenStats: () => void
 }
 
-export function ResultsPage({ score, onPlayAgain, onChangeSettings }: Props) {
+export function ResultsPage({ score, onPlayAgain, onChangeSettings, onOpenStats }: Props) {
   return (
     <main>
       <h1>Results</h1>
@@ -15,6 +16,9 @@ export function ResultsPage({ score, onPlayAgain, onChangeSettings }: Props) {
         </button>{' '}
         <button type="button" onClick={onChangeSettings}>
           Change settings
+        </button>{' '}
+        <button type="button" onClick={onOpenStats}>
+          Stats
         </button>
       </p>
     </main>

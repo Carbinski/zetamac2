@@ -1,19 +1,26 @@
-import type { DurationSeconds, Settings } from '../game/types.ts'
+import type { DurationSeconds, Settings, SlowProblem } from '../game/types.ts'
 import { DURATIONS } from '../game/types.ts'
 import { enabledCategories } from '../game/generators.ts'
 
 type Props = {
   settings: Settings
   onChange: (settings: Settings) => void
+  slowBank: SlowProblem[]
   onStart: () => void
+  onPracticeSlow: () => void
+  onOpenStats: () => void
 }
 
 export function SettingsPage({
   settings,
   onChange,
+  slowBank,
   onStart,
+  onPracticeSlow,
+  onOpenStats,
 }: Props) {
   const canStart = enabledCategories(settings).length > 0
+  const canPractice = slowBank.length > 0
 
   return (
     <main>
@@ -275,8 +282,15 @@ export function SettingsPage({
       <p>
         <button type="button" onClick={onStart} disabled={!canStart}>
           Start
+        </button>{' '}
+        <button type="button" onClick={onPracticeSlow} disabled={!canPractice}>
+          Practice slow problems
+        </button>{' '}
+        <button type="button" onClick={onOpenStats}>
+          Stats
         </button>
       </p>
+      {!canPractice && <p>No slow problems yet. Play enough in a category to flag outliers.</p>}
     </main>
   )
 }
