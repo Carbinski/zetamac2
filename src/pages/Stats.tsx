@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
-import { CATEGORY_LABELS, type Category, type StatsPayload } from '../game/types.ts'
+import { ALL_CATEGORIES, CATEGORY_LABELS, type Category, type StatsPayload } from '../game/types.ts'
 import { fetchStats } from '../persist/api.ts'
 
 type Props = {
@@ -71,6 +71,14 @@ export function StatsPage({ onBack }: Props) {
   const slow = (stats?.slowProblems ?? [])
     .slice()
     .sort((a, b) => b.avgTimeMs - a.avgTimeMs)
+  const lifetimeRows = useMemo(() => {
+    if (!stats) return []
+    return ALL_CATEGORIES.map((category) => ({
+      category,
+      label: CATEGORY_LABELS[category],
+      n: stats.lifetime.byCategory[category] ?? 0,
+    })).filter((row) => row.n > 0)
+  }, [stats])
 
   return (
     <main>
@@ -82,6 +90,32 @@ export function StatsPage({ onBack }: Props) {
       </p>
       {error && <p>{error}</p>}
       {!stats && !error && <p>Loading...</p>}
+      {stats && (
+        <section>
+          <h2>Lifetime</h2>
+          <p>Questions answered: {stats.lifetime.answered}</p>
+          {lifetimeRows.length === 0 ? (
+            <p>No answers by type yet.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Answered</th>
+                </tr>
+              </thead>
+              <tbody>
+                {lifetimeRows.map((row) => (
+                  <tr key={row.category}>
+                    <td>{row.label}</td>
+                    <td>{row.n}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      )}
       {stats && stats.sessions.length === 0 && <p>No sessions yet.</p>}
       {stats && stats.sessions.length > 0 && (
         <>

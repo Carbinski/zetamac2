@@ -1,10 +1,14 @@
 import type { AttemptInput, SessionRecord, SlowProblem, StatsPayload } from '../game/types.ts'
 
-export async function saveSession(session: SessionRecord, attempts: AttemptInput[]): Promise<void> {
+export async function saveSession(
+  session: SessionRecord | null,
+  attempts: AttemptInput[],
+  answers: Array<{ category: AttemptInput['category'] }>,
+): Promise<void> {
   const res = await fetch('/api/session', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ session, attempts }),
+    body: JSON.stringify({ session, attempts, answers }),
   })
   if (!res.ok) {
     throw new Error(`Failed to save session: ${res.status}`)

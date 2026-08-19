@@ -2,6 +2,9 @@ import fs from 'node:fs'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import path from 'node:path'
 import type { Plugin } from 'vite'
+import { addLifetimeCounts, lifetimeFromCategoryStats } from '../src/game/lifetime.ts'
+import { shouldRecordAttempt } from '../src/game/recordPolicy.ts'
+import type { LifetimeMetrics } from '../src/game/types.ts'
 import {
   processAttempt,
   type CategoryStat,
@@ -13,6 +16,7 @@ const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.jsonl')
 const ATTEMPTS_FILE = path.join(DATA_DIR, 'attempts.jsonl')
 const STATS_FILE = path.join(DATA_DIR, 'category-stats.json')
 const SLOW_FILE = path.join(DATA_DIR, 'slow-problems.json')
+const LIFETIME_FILE = path.join(DATA_DIR, 'lifetime.json')
 
 type SessionBody = {
   session: {
@@ -25,13 +29,14 @@ type SessionBody = {
     score: number
     attemptCount: number
     meanTime: number
-  }
+  } | null
   attempts: Array<{
     category: string
     prompt: string
     answer: string
     timeMs: number
   }>
+  answers: Array<{ category: string }>
 }
 
 export function zetamacApiPlugin(): Plugin {
@@ -86,46 +91,72 @@ function persistSession(body: SessionBody): { flagged: number } {
   ensureDataDir()
   const stats = readJson<Record<string, CategoryStat>>(STATS_FILE, {})
   const bank = readJson<Record<string, SlowProblemRecord>>(SLOW_FILE, {})
+  const lifetime = readLifetime(stats)
+  writeJson(LIFETIME_FILE, addLifetimeCounts(lifetime, body.answers))
   let flagged = 0
 
-  appendJsonl(SESSIONS_FILE, body.session)
+  if (body.session) {
+    appendJsonl(SESSIONS_FILE, body.session)
 
-  for (const attempt of body.attempts) {
-    const flaggedSlow = processAttempt(stats, bank, attempt)
-    if (flaggedSlow) flagged += 1
-    appendJsonl(ATTEMPTS_FILE, {
-      category: attempt.category,
-      prompt: attempt.prompt,
-      answer: attempt.answer,
-      timeMs: attempt.timeMs,
-      sessionId: body.session.id,
-      settingsHash: body.session.settingsHash,
-      flaggedSlow,
-    })
+    for (const [index, attempt] of body.attempts.entries()) {
+      if (!shouldRecordAttempt(attempt.timeMs)) continue
+      const flaggedSlow = processAttempt(stats, bank, attempt, { isFirstAttempt: index === 0 })
+      if (flaggedSlow) flagged += 1
+      appendJsonl(ATTEMPTS_FILE, {
+        category: attempt.category,
+        prompt: attempt.prompt,
+        answer: attempt.answer,
+        timeMs: attempt.timeMs,
+        sessionId: body.session.id,
+        settingsHash: body.session.settingsHash,
+        flaggedSlow,
+      })
+    }
+
+    writeJson(STATS_FILE, stats)
+    writeJson(SLOW_FILE, bank)
   }
 
-  writeJson(STATS_FILE, stats)
-  writeJson(SLOW_FILE, bank)
   return { flagged }
+}
+
+function readLifetime(stats: Record<string, CategoryStat>): LifetimeMetrics {
+  if (fs.existsSync(LIFETIME_FILE)) {
+    return readJson<LifetimeMetrics>(LIFETIME_FILE, { answered: 0, byCategory: {} })
+  }
+  return lifetimeFromCategoryStats(stats)
 }
 
 function readStats(): {
   sessions: unknown[]
   categoryStats: Record<string, CategoryStat>
   slowProblems: SlowProblemRecord[]
+  lifetime: LifetimeMetrics
 } {
+  const categoryStats = readJson<Record<string, CategoryStat>>(STATS_FILE, {})
   return {
     sessions: readJsonl(SESSIONS_FILE),
-    categoryStats: readJson(STATS_FILE, {}),
+    categoryStats,
     slowProblems: Object.values(readJson(SLOW_FILE, {} as Record<string, SlowProblemRecord>)),
+    lifetime: readLifetime(categoryStats),
   }
 }
 
 function parseSession(raw: string): SessionBody | null {
   try {
     const data = JSON.parse(raw) as SessionBody
-    if (!data?.session?.id || !Array.isArray(data.attempts)) return null
-    return data
+    const answers = Array.isArray(data.answers)
+      ? data.answers
+      : Array.isArray(data.attempts)
+        ? data.attempts
+        : null
+    if (!answers) return null
+    if (data.session != null && !data.session.id) return null
+    return {
+      session: data.session ?? null,
+      attempts: Array.isArray(data.attempts) ? data.attempts : [],
+      answers,
+    }
   } catch {
     return null
   }

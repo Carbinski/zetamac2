@@ -1,3 +1,5 @@
+import { shouldNoteSlow } from '../src/game/recordPolicy.ts'
+
 export const SLOW_MIN_ANSWERS = 8
 export const SLOW_FACTOR = 1.5
 
@@ -59,11 +61,15 @@ export function processAttempt(
   stats: Record<string, CategoryStat>,
   bank: Record<string, SlowProblemRecord>,
   attempt: { category: string; prompt: string; answer: string; timeMs: number },
+  options?: { isFirstAttempt?: boolean },
 ): boolean {
   const prev = stats[attempt.category] ?? { n: 0, mean: 0, m2: 0 }
   const next = updateWelford(prev, attempt.timeMs)
   stats[attempt.category] = next
-  const flagged = shouldFlagSlow(next, attempt.timeMs)
+  const flagged = shouldNoteSlow({
+    isFirstAttempt: options?.isFirstAttempt ?? false,
+    flaggedByRule: shouldFlagSlow(next, attempt.timeMs),
+  })
   if (flagged) {
     upsertSlowProblem(bank, attempt, attempt.timeMs)
   }

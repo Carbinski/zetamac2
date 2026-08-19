@@ -15,5 +15,12 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "server/api.ts", "server/analyze.ts"]
+  "include": [
+    "vite.config.ts",
+    "server/api.ts",
+    "server/analyze.ts",
+    "src/game/recordPolicy.ts",
+    "src/game/lifetime.ts",
+    "src/game/types.ts",
+  ]
 }

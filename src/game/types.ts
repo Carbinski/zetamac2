@@ -84,10 +84,16 @@ export type CategoryStat = {
   m2: number
 }
 
+export type LifetimeMetrics = {
+  answered: number
+  byCategory: Record<string, number>
+}
+
 export type StatsPayload = {
   sessions: SessionRecord[]
   categoryStats: Record<string, CategoryStat>
   slowProblems: SlowProblem[]
+  lifetime: LifetimeMetrics
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {

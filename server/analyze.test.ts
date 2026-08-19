@@ -64,6 +64,27 @@ describe('processAttempt', () => {
     expect(bank['99 + 1']?.count).toBe(1)
   })
 
+  it('does not note a first-of-session answer even when it is unusually long', () => {
+    const stats: Record<string, CategoryStat> = {
+      addition: { n: 8, mean: 1000, m2: 0 },
+    }
+    const bank: Record<string, SlowProblemRecord> = {}
+    const flagged = processAttempt(
+      stats,
+      bank,
+      {
+        category: 'addition',
+        prompt: '40 + 2',
+        answer: '42',
+        timeMs: 4000,
+      },
+      { isFirstAttempt: true },
+    )
+    expect(flagged).toBe(false)
+    expect(bank['40 + 2']).toBeUndefined()
+    expect(stats.addition?.n).toBe(9)
+  })
+
   it('does not flag an 8th answer near the mean', () => {
     const stats: Record<string, CategoryStat> = {}
     const bank: Record<string, SlowProblemRecord> = {}

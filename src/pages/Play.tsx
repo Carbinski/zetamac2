@@ -2,6 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { checkAnswer } from '../game/checkAnswer.ts'
 import { generateProblem } from '../game/generators.ts'
 import { settingsHash, settingsLabel } from '../game/settingsHash.ts'
+import {
+  meanAttemptTime,
+  recordableAttempts,
+  shouldPersistSession,
+} from '../game/recordPolicy.ts'
 import type { AttemptInput, SessionRecord, Settings, SlowProblem } from '../game/types.ts'
 import { saveSession } from '../persist/api.ts'
 
@@ -31,33 +36,41 @@ export function PlayPage({ settings, slowBank, onFinished }: Props) {
       const left = Math.max(0, Math.ceil((endAtRef.current - Date.now()) / 1000))
       setSecondsLeft(left)
       if (left === 0) {
-        void finish()
+        void finish(true)
       }
     }, 200)
     return () => window.clearInterval(id)
   }, [])
 
-  async function finish(): Promise<void> {
+  async function finish(completedNaturally: boolean): Promise<void> {
     if (finishedRef.current) return
     finishedRef.current = true
     const attempts = attemptsRef.current
-    const meanTime =
-      attempts.length === 0 ? 0 : attempts.reduce((sum, row) => sum + row.timeMs, 0) / attempts.length
-    const session: SessionRecord = {
-      id: crypto.randomUUID(),
-      timestamp: new Date().toISOString(),
-      settings,
-      settingsHash: settingsHash(settings),
-      settingsLabel: settingsLabel(settings),
-      duration: settings.durationSeconds,
-      score: attempts.length,
-      attemptCount: attempts.length,
-      meanTime,
-    }
-    try {
-      await saveSession(session, attempts)
-    } catch (err) {
-      console.error(err)
+    const recorded = recordableAttempts(attempts)
+    const persist = shouldPersistSession({
+      completedNaturally,
+      pageVisible: document.visibilityState === 'visible',
+    })
+    const answers = attempts.map((attempt) => ({ category: attempt.category }))
+    if (persist || answers.length > 0) {
+      const session: SessionRecord | null = persist
+        ? {
+            id: crypto.randomUUID(),
+            timestamp: new Date().toISOString(),
+            settings,
+            settingsHash: settingsHash(settings),
+            settingsLabel: settingsLabel(settings),
+            duration: settings.durationSeconds,
+            score: attempts.length,
+            attemptCount: recorded.length,
+            meanTime: meanAttemptTime(recorded),
+          }
+        : null
+      try {
+        await saveSession(session, persist ? recorded : [], answers)
+      } catch (err) {
+        console.error(err)
+      }
     }
     onFinished({ score: attempts.length, attemptCount: attempts.length })
   }
@@ -82,7 +95,10 @@ export function PlayPage({ settings, slowBank, onFinished }: Props) {
   return (
     <main>
       <p>
-        Seconds left: {secondsLeft} &nbsp; Score: {score}
+        Seconds left: {secondsLeft} &nbsp; Score: {score}{' '}
+        <button type="button" onClick={() => void finish(false)}>
+          Quit
+        </button>
       </p>
       <p className="prompt">{problem.prompt}</p>
       <form
