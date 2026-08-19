@@ -1,0 +1,56 @@
+:root {
+  color-scheme: light;
+}
+
+body {
+  margin: 1.5rem;
+  font-family: sans-serif;
+  line-height: 1.4;
+  color: #111;
+  background: #fff;
+}
+
+h1,
+h2 {
+  font-weight: 700;
+}
+
+section {
+  margin: 1.25rem 0;
+}
+
+label {
+  display: block;
+  margin: 0.35rem 0;
+}
+
+input[type='number'] {
+  width: 4.5em;
+}
+
+.prompt {
+  font-size: 2rem;
+  margin: 1rem 0;
+}
+
+.chart {
+  width: 100%;
+  max-width: 720px;
+  height: 280px;
+  margin-top: 0.75rem;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  border: 1px solid #ccc;
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+}
+
+button:disabled {
+  opacity: 0.5;
+}
