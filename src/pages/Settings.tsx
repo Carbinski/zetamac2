@@ -24,7 +24,7 @@ export function SettingsPage({
 
   return (
     <main>
-      <h1>Zetamac2</h1>
+      <h1 className="site-title">Zetamac2</h1>
       <p>Local arithmetic trainer. Type the answer; a correct value submits on its own.</p>
 
       <section>

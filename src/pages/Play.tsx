@@ -93,7 +93,7 @@ export function PlayPage({ settings, slowBank, onFinished }: Props) {
   }
 
   return (
-    <main>
+    <main className="play">
       <p>
         Seconds left: {secondsLeft} &nbsp; Score: {score}{' '}
         <button type="button" onClick={() => void finish(false)}>
