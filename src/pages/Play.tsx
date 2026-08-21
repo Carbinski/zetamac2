@@ -88,7 +88,7 @@ export function PlayPage({ settings, slowBank, onFinished }: Props) {
     })
     setScore(attemptsRef.current.length)
     setInput('')
-    setProblem(generateProblem(settings, Math.random, slowBank))
+    setProblem(generateProblem(settings, Math.random, slowBank, problem))
     startedAtRef.current = Date.now()
   }
 

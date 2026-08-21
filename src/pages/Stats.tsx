@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { filterSlowProblems, slowFilterOptions } from '../game/slowProblems.ts'
 import { ALL_CATEGORIES, CATEGORY_LABELS, type Category, type StatsPayload } from '../game/types.ts'
 import { fetchStats } from '../persist/api.ts'
 
@@ -21,6 +22,7 @@ export function StatsPage({ onBack }: Props) {
   const [stats, setStats] = useState<StatsPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hashFilter, setHashFilter] = useState('')
+  const [slowCategory, setSlowCategory] = useState<Category | ''>('')
 
   useEffect(() => {
     void fetchStats()
@@ -68,9 +70,15 @@ export function StatsPage({ onBack }: Props) {
   }, [stats])
 
   const weakest = barData.slice(0, 5)
-  const slow = (stats?.slowProblems ?? [])
-    .slice()
-    .sort((a, b) => b.avgTimeMs - a.avgTimeMs)
+  const slowOptions = useMemo(
+    () => (stats ? slowFilterOptions(stats.slowProblems) : []),
+    [stats],
+  )
+  const slow = useMemo(() => {
+    return filterSlowProblems(stats?.slowProblems ?? [], slowCategory)
+      .slice()
+      .sort((a, b) => b.avgTimeMs - a.avgTimeMs)
+  }, [stats, slowCategory])
   const lifetimeRows = useMemo(() => {
     if (!stats) return []
     return ALL_CATEGORIES.map((category) => ({
@@ -183,31 +191,51 @@ export function StatsPage({ onBack }: Props) {
 
       <section>
         <h2>Slow problems</h2>
-        {slow.length === 0 ? (
+        {!stats || stats.slowProblems.length === 0 ? (
           <p>None flagged yet. A category needs 8 answers before outliers are stored.</p>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Prompt</th>
-                <th>Category</th>
-                <th>Times seen</th>
-                <th>Avg time (ms)</th>
-                <th>Last time (ms)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slow.map((row) => (
-                <tr key={row.prompt}>
-                  <td>{row.prompt}</td>
-                  <td>{CATEGORY_LABELS[row.category] ?? row.category}</td>
-                  <td>{row.count}</td>
-                  <td>{Math.round(row.avgTimeMs)}</td>
-                  <td>{Math.round(row.lastTimeMs)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            <label>
+              Category:{' '}
+              <select
+                value={slowCategory}
+                onChange={(e) => setSlowCategory(e.target.value as Category | '')}
+              >
+                <option value="">All categories</option>
+                {slowOptions.map((option) => (
+                  <option key={option.category} value={option.category}>
+                    {CATEGORY_LABELS[option.category]} ({option.count})
+                  </option>
+                ))}
+              </select>
+            </label>
+            {slow.length === 0 ? (
+              <p>No slow problems in this category.</p>
+            ) : (
+              <table>
+                <thead>
+                  <tr>
+                    <th>Prompt</th>
+                    <th>Category</th>
+                    <th>Times seen</th>
+                    <th>Avg time (ms)</th>
+                    <th>Last time (ms)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {slow.map((row) => (
+                    <tr key={row.prompt}>
+                      <td>{row.prompt}</td>
+                      <td>{CATEGORY_LABELS[row.category] ?? row.category}</td>
+                      <td>{row.count}</td>
+                      <td>{Math.round(row.avgTimeMs)}</td>
+                      <td>{Math.round(row.lastTimeMs)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </>
         )}
       </section>
     </main>

@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Isolated git worktrees
+.worktrees/
+
 # Runtime session data
 data/*
 !data/.gitkeep

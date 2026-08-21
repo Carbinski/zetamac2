@@ -3,7 +3,7 @@ import { checkAnswer } from './checkAnswer.ts'
 import { cloneSettings, DEFAULT_SETTINGS } from './defaults.ts'
 import { generateCategory, generateProblem, type Rng } from './generators.ts'
 import { PERCENT_FRACTIONS } from './percentBank.ts'
-import type { Category, Settings, SlowProblem } from './types.ts'
+import type { Category, Problem, Settings, SlowProblem } from './types.ts'
 
 function mulberry32(seed: number): Rng {
   let t = seed >>> 0
@@ -73,6 +73,78 @@ describe('generateProblem', () => {
     const settings = cloneSettings(DEFAULT_SETTINGS)
     settings.mode = 'slow-practice'
     expect(() => generateProblem(settings, () => 0, [])).toThrow('No slow problems to practice')
+  })
+
+  it('does not replay the same slow problem twice in a row when another exists', () => {
+    const settings = cloneSettings(DEFAULT_SETTINGS)
+    settings.mode = 'slow-practice'
+    const bank: SlowProblem[] = [
+      {
+        prompt: '7²',
+        category: 'squares',
+        answer: '49',
+        count: 2,
+        lastTimeMs: 3000,
+        avgTimeMs: 2800,
+      },
+      {
+        prompt: '8²',
+        category: 'squares',
+        answer: '64',
+        count: 2,
+        lastTimeMs: 3100,
+        avgTimeMs: 2900,
+      },
+    ]
+    const first = generateProblem(settings, () => 0, bank)
+    const second = generateProblem(settings, () => 0, bank, first)
+    expect(first.prompt).toBe('7²')
+    expect(second.prompt).toBe('8²')
+  })
+
+  it('repeats the only slow problem when the bank has no alternative', () => {
+    const settings = cloneSettings(DEFAULT_SETTINGS)
+    settings.mode = 'slow-practice'
+    const bank: SlowProblem[] = [
+      {
+        prompt: '7²',
+        category: 'squares',
+        answer: '49',
+        count: 2,
+        lastTimeMs: 3000,
+        avgTimeMs: 2800,
+      },
+    ]
+    const first = generateProblem(settings, () => 0, bank)
+    const second = generateProblem(settings, () => 0, bank, first)
+    expect(second.prompt).toBe('7²')
+  })
+
+  it('does not repeat consecutive prompts in normal play when alternatives exist', () => {
+    const settings = only('power5')
+    settings.power5.min = 1
+    settings.power5.max = 2
+    const rng = mulberry32(7)
+    let previous: Problem | undefined
+    const prompts: string[] = []
+    for (let i = 0; i < 30; i++) {
+      const problem = generateProblem(settings, rng, [], previous)
+      prompts.push(problem.prompt)
+      previous = problem
+    }
+    for (let i = 1; i < prompts.length; i++) {
+      expect(prompts[i]).not.toBe(prompts[i - 1])
+    }
+  })
+
+  it('repeats when the previous prompt is the only option', () => {
+    const settings = only('power5')
+    settings.power5.min = 3
+    settings.power5.max = 3
+    const first = generateProblem(settings, () => 0)
+    const second = generateProblem(settings, () => 0, [], first)
+    expect(first.prompt).toBe('5^3')
+    expect(second.prompt).toBe('5^3')
   })
 })
 

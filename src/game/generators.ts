@@ -40,20 +40,28 @@ export function generateProblem(
   settings: Settings,
   rng: Rng = Math.random,
   slowBank: SlowProblem[] = [],
+  previous?: Problem,
 ): Problem {
   if (settings.mode === 'slow-practice') {
     if (slowBank.length === 0) {
       throw new Error('No slow problems to practice')
     }
-    return replaySlow(pick(slowBank, rng))
+    const pool = excludePrevious(slowBank, previous)
+    return replaySlow(pick(pool, rng))
   }
 
   const cats = enabledCategories(settings)
   if (cats.length === 0) {
     throw new Error('No problem types enabled')
   }
-  const category = pick(cats, rng)
-  return generateCategory(category, settings, rng)
+  const next = (): Problem => generateCategory(pick(cats, rng), settings, rng)
+  const problem = next()
+  if (!previous || problem.prompt !== previous.prompt) return problem
+  for (let i = 0; i < 40; i++) {
+    const candidate = next()
+    if (candidate.prompt !== previous.prompt) return candidate
+  }
+  return problem
 }
 
 export function generateCategory(category: Category, settings: Settings, rng: Rng): Problem {
@@ -91,6 +99,15 @@ function replaySlow(item: SlowProblem): Problem {
     prompt: item.prompt,
     answer: item.answer,
   }
+}
+
+function excludePrevious<T extends { prompt: string }>(
+  items: readonly T[],
+  previous?: Problem,
+): readonly T[] {
+  if (!previous) return items
+  const filtered = items.filter((item) => item.prompt !== previous.prompt)
+  return filtered.length > 0 ? filtered : items
 }
 
 function genAddition(settings: Settings, rng: Rng): Problem {
